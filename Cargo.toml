@@ -6,12 +6,12 @@ description = "Offline Threshold Key Management System for Blockchain Private Ke
 license = "MIT"
 
 [dependencies]
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 anyhow = "1"
-argon2 = "0.5"
+argon2 = "0.6"
 axum = "0.8"
-base64 = "0.22"
-bincode = "1"
+base64 = "0.23"
+bincode = "3"
 bitcoin = { version = "0.32", default-features = false, features = ["std"] }
 bitcoincore-rpc = "0.19.0"
 bs58 = "0.5"
@@ -19,25 +19,25 @@ clap = { version = "4.6", features = ["derive"] }
 cosmrs = { version = "0.22", default-features = false, features = ["rpc", "tokio"] }
 dotenvy = "0.15"
 crossterm = "0.29"
-ed25519-dalek = { version = "2.2", features = ["rand_core", "zeroize"] }
+ed25519-dalek = { version = "3.0", features = ["rand_core", "zeroize"] }
 frost-ed25519 = "3.0.0"
 frost-secp256k1-tr = "3.0.0"
 hex = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
-k256 = { version = "0.13", features = ["schnorr"] }
+k256 = { version = "0.14", features = ["schnorr"] }
 qrcode = { version = "0.14.1", default-features = false }
-rand = "0.8"
+rand = "0.10"
 ratatui = "0.30"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rpassword = "7"
 rqrr = { version = "0.11.0", default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 solana-commitment-config = "3"
-solana-hash = "3"
+solana-hash = "4"
 solana-message = { version = "3", features = ["bincode"] }
-solana-pubkey = "3"
+solana-pubkey = "4"
 solana-rpc-client = "=3.0.7"
 solana-signature = { version = "3", features = ["verify"] }
 solana-system-interface = { version = "3", features = ["bincode"] }
@@ -46,11 +46,11 @@ tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 tui-input = { version = "0.15", features = ["crossterm"] }
-vsss-rs = "5.4.0"
+vsss-rs = "6.0.1"
 zeroize = "1.8"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 serde_json = "1"
