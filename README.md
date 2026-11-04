@@ -14,7 +14,6 @@ Unlike traditional wallets, HORCRUX treats key management as an entire lifecycle
 
 ## Table of Contents
 
-- Introduction
 - Why HORCRUX?
 - Features
 - Project Objectives
@@ -22,22 +21,22 @@ Unlike traditional wallets, HORCRUX treats key management as an entire lifecycle
 - Core Concepts
 - System Workflow
 - Project Architecture
-- Project Modules
 - Technology Stack
 - Repository Structure
 - Installation
-- Building
-- Usage
+- Getting Started
 - CLI Commands
-- Interactive TUI & Local Web UI
+- Interactive TUI
+- Local Web UI
 - Access Logging, AI Checks & Risk Assessment
+- Configuration
 - Cryptographic Design
 - Security Model
 - Threat Model
-- Demo Script
-- Marketing Site
-- Contributing & CI
-- Future Roadmap
+- Performance Goals
+- Design Philosophy
+- Roadmap
+- Contributing
 - References
 - License
 
@@ -160,6 +159,25 @@ Beyond cryptography, HORCRUX includes behavioral anomaly detection capable of id
 - repeated password failures
 - abnormal guardian participation
 - suspicious access patterns
+
+---
+
+## Advisory Risk Dashboard
+
+The local web UI turns the access log into a 0–100 advisory risk score
+(`Low` / `Medium` / `High`) covering failed decrypts, blocked attempts, rapid
+retries, affected shards, and odd-hour activity. It is explanatory only: the
+rule-based audit pre-flight remains the component that can actually refuse an
+operation.
+
+---
+
+## QR Shard Transport
+
+Every Mode A split and Solana Mode B split also writes each shard/share as a
+scannable QR-code PNG next to its `.hx` file, so an encrypted shard can be moved
+to an offline machine by camera instead of by copying a file. The web UI can
+also export any existing shard to QR and import a scanned shard back.
 
 ---
 
@@ -480,6 +498,7 @@ HORCRUX
 ├── Signing Module
 ├── Blockchain Module
 ├── AI Module
+├── Risk Module
 └── Logging Module
 ```
 
@@ -502,7 +521,7 @@ Each module has a clearly defined responsibility to simplify auditing, testing, 
 | Chain Integration | solana-rpc-client (Solana), bitcoincore-rpc (Bitcoin), cosmrs::rpc / tendermint-rpc (Cosmos) |
 | MPC | FROST (frost-ed25519 for Solana, frost-secp256k1-tr for Bitcoin Taproot) |
 | Air-gapped transport | HX3 frames over QR-code PNGs (`qrcode` + `image` + `rqrr`) or `.hx3` files |
-| AI | Rule-based scorer (z-scores + hard rules) |
+| AI / anomaly detection | Rule-based scorer (z-scores + hard rules) + optional OpenRouter LLM advisory check |
 | Serialization | serde |
 | Storage | Binary Shard Files |
 | USB Medium | FAT32 / exFAT Drives |
@@ -528,11 +547,15 @@ horcrux/
 │   ├── bitcoin.rs      offline Bitcoin Taproot transaction build/sign
 │   ├── cosmos.rs       offline Cosmos bank.MsgSend build/sign
 │   ├── chain.rs        Solana RPC broadcast / blockhash / balance
-│   ├── audit.rs        access log + anomaly scorer
-│   ├── verify.rs       passive shard integrity checks
+│   ├── audit.rs        access log + rule-based anomaly scorer
+│   ├── risk.rs         advisory risk scoring for the web dashboard
+│   ├── ai_anomaly.rs   OpenRouter LLM anomaly check (advisory)
+│   ├── verify.rs       passive shard/share integrity checks (incl. QR PNGs)
 │   ├── error.rs        typed error enum
 │   ├── tui/            interactive terminal UI (`horcrux tui`)
 │   └── web/            local loopback-only web UI (`horcrux web`)
+│       ├── devices.rs  local/USB device discovery for shard destinations
+│       └── assets/     embedded HTML/CSS/JS for the web UI
 │
 ├── site/               marketing/docs site (Next.js + React + Tailwind CSS — install guide, demo video slot)
 │
@@ -545,7 +568,8 @@ horcrux/
 │   ├── qr.rs
 │   └── verify.rs
 │
-├── agent/wayfinder/PLAN.md
+├── agent/wayfinder/PLAN.md   build plan
+├── agent/viva/               code map + viva Q&A reference
 ├── Architecture.md
 ├── CONTRIBUTING.md   contribution + release workflow
 ├── demo.sh
@@ -688,6 +712,8 @@ horcrux
 ├── qr-finalize
 ├── verify
 ├── log
+├── ai-setup      (save OpenRouter key/model to .env)
+├── ai-check      (advisory LLM review of the access log)
 ├── tui           (interactive terminal UI)
 ├── web           (local, loopback-only web UI)
 └── help
@@ -727,12 +753,32 @@ Encrypt
 
 ↓
 
-Write USB Shards
+Write USB Shards + QR PNGs
 
 ↓
 
 Destroy Original Key
 ```
+
+Each shard is written as a compact `.hx` file and accompanied by a QR-code PNG
+containing the exact encrypted shard bytes, so a guardian can move it to an
+offline machine by camera instead of by copying a file.
+
+---
+
+## Reconstruct
+
+Recover the original private key from a threshold subset of shards and print it
+as hex. This is the raw Mode A recovery path; `sign` performs the same
+reconstruction internally without ever printing the key.
+
+```bash
+horcrux reconstruct ./usb/shard-1.hx ./usb/shard-2.hx --password guardian
+```
+
+The reconstructed key is written to stdout as hex — treat that output as the
+secret it is, and never store it in shell history or logs. Like `sign`, this
+runs the audit pre-flight first (`--log-file`, `--force`).
 
 ---
 
@@ -983,6 +1029,8 @@ Checks
 - Metadata (threshold, share count, ids)
 - Cross-file consistency (all one kind, one split — mixed types or mixed
   split parameters are reported)
+- PNG QR transports: decodes each image to the encrypted shard/share payload
+  before applying the same checks
 - With `--password`, each file's AES-256-GCM authentication tag
 
 Exits non-zero if any file fails.
@@ -1051,12 +1099,13 @@ Split screens, shown once with an explicit "shown once" label.
 ## Local Web UI
 
 A browser-based alternative to the TUI, for guardians who'd rather fill in a
-form than navigate a terminal. Covers the Solana MVP flows — Access log,
+form than navigate a terminal. Covers Access log, the advisory risk dashboard,
 Verify, Init, Sign, standalone Reconstruct, MPC split/sign, and the full
 air-gapped `qr-request`/`qr-commit`/`qr-package`/`qr-share`/`qr-finalize`
 protocol — backed by the same library code as the CLI and TUI. Split forms can
-assign each shard/share to a different connected device (for example one USB
-drive per guardian) in a single operation.
+assign each shard/share to a different connected device (local disks and
+removable USB drives are auto-discovered on Windows) in a single operation, and
+existing shards can be exported to or imported from QR images.
 
 ```bash
 horcrux web
@@ -1183,6 +1232,15 @@ AI ANOMALY WARNING [meta-llama/llama-3.3-70b-instruct:free]: three failed decryp
 
 With no API key configured, this is skipped entirely — nothing changes for
 users who haven't set one up.
+
+### Advisory risk score (web dashboard)
+
+`horcrux web` also exposes a `GET /api/risk-assessment` view that summarizes
+recent activity as a 0–100 advisory score (`Low` / `Medium` / `High`) from the
+same log: failed decrypts, blocked attempts, rapid attempts within a 60-second
+span, distinct shards with decryption failures, and odd-hour events. It is
+explanatory only — it never blocks an operation; the rule-based audit
+pre-flight remains the gate.
 
 ---
 
@@ -1632,8 +1690,12 @@ Rust reduces classes of vulnerabilities common in systems programming.
 - QR-Based Air-Gapped Mode B (Solana)
 - Multi-Chain Signing (Solana, Bitcoin, Cosmos)
 - Interactive TUI (Solana Mode A/B MVP)
+- Local Web UI (loopback-only, token-authenticated)
 - Logging
-- AI Detection
+- Rule-Based Anomaly Detection
+- Advisory AI Anomaly Check (OpenRouter)
+- Advisory Risk Dashboard (web UI)
+- QR Shard Export/Import
 
 ---
 
