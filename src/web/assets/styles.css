@@ -85,7 +85,13 @@ button { font-family: var(--font-sans); }
 .rail-hint { font-size: 0.74rem; color: var(--text-faint); margin: 0; }
 
 /* ===== Content ===== */
-.content { flex: 1; padding: 40px 44px; max-width: 760px; }
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 1600px;
+  min-width: 0;
+  padding: 40px 44px;
+}
 .panel-head { margin-bottom: 26px; }
 .panel-head h1 { margin: 0 0 8px; font-size: 1.5rem; letter-spacing: -0.01em; }
 .panel-head p { margin: 0; color: var(--text-muted); font-size: 0.94rem; max-width: 60ch; }
@@ -98,6 +104,7 @@ button { font-family: var(--font-sans); }
 .field input[type="text"],
 .field input[type="password"],
 .field input[type="number"],
+.field select,
 .field textarea {
   background: var(--surface);
   border: 1px solid var(--border-strong);
@@ -118,6 +125,35 @@ button { font-family: var(--font-sans); }
 .force-field { padding: 10px 12px; background: var(--danger-soft); border-radius: var(--radius-sm); color: var(--danger); }
 .field-inline { display: flex; align-items: center; gap: 8px; font-size: 0.86rem; color: var(--text-muted); }
 .field-inline input { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text); }
+
+.password-fields { display: flex; flex-direction: column; gap: 10px; }
+.signing-entry {
+  display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.02);
+}
+.password-entry-head { display: flex; flex-direction: column; gap: 2px; }
+.password-entry-title { color: var(--text); font-weight: 600; font-size: 0.84rem; }
+.password-entry-path {
+  font-family: var(--font-mono); font-size: 0.74rem;
+  color: var(--text-faint); word-break: break-all;
+}
+.device-field {
+  display: grid; grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center; gap: 10px; font-size: 0.82rem; color: var(--text-muted);
+}
+.device-select {
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); padding: 8px 10px; color: var(--text);
+  font-size: 0.86rem; font-family: var(--font-mono);
+}
+.device-select:focus {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.signing-entry .password-field > span {
+  color: var(--text-muted); font-size: 0.8rem;
+}
 
 .form-actions { display: flex; gap: 12px; margin-top: 4px; }
 .toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
@@ -197,6 +233,49 @@ table.data tr:last-child td { border-bottom: none; }
 }
 .copy-inline:hover { color: var(--accent); border-color: var(--accent); }
 
+.qr-import-row { align-items: center; gap: 10px; margin-top: -6px; }
+.qr-import-row input[type="file"] { font-size: 0.8rem; color: var(--text-muted); }
+.qr-show-wrap { margin-top: 4px; }
+.qr-frames { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.qr-frame { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.qr-frame img { width: 180px; height: 180px; background: #fff; border-radius: 6px; }
+.qr-frame-label { font-size: 0.72rem; color: var(--text-muted); }
+
+/* ===== QR Air-Gap Flow ===== */
+.qr-airgap { display: flex; flex-direction: column; gap: 18px; }
+.qr-intro {
+  margin: 0; padding: 14px 16px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted); font-size: 0.88rem; max-width: 80ch;
+}
+.qr-intro code { color: var(--accent); font-family: var(--font-mono); }
+.qr-step {
+  margin-bottom: 0; padding: 18px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface-2);
+}
+.qr-step h2 { margin: 0; font-size: 1rem; letter-spacing: -0.01em; }
+.qr-step-hint { margin: -6px 0 0; color: var(--text-faint); font-size: 0.82rem; max-width: 80ch; }
+.qr-artifacts { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.qr-artifact {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); max-width: 210px;
+}
+.qr-artifact img { width: 170px; height: 170px; background: #fff; border-radius: 6px; }
+.qr-file-icon {
+  width: 170px; height: 90px; display: flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--border-strong); border-radius: 6px;
+  font-family: var(--font-mono); color: var(--accent); font-weight: 700;
+}
+.qr-download { font-size: 0.74rem; color: var(--accent); text-decoration: none; word-break: break-all; }
+.qr-download:hover { text-decoration: underline; }
+.qr-artifact-path {
+  margin: 0; font-family: var(--font-mono); font-size: 0.68rem;
+  color: var(--text-faint); word-break: break-all; text-align: center;
+}
+.qr-imported { margin-top: 16px; }
+.qr-imported h3 { margin: 0 0 8px; font-size: 0.9rem; }
+
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
   .rail { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
@@ -204,4 +283,176 @@ table.data tr:last-child td { border-bottom: none; }
   .rail-footer { border-top: none; padding-top: 0; }
   .content { padding: 28px 20px; max-width: none; }
   .field-row { grid-template-columns: 1fr; }
+}
+
+/* ===== Security Risk Assessment ===== */
+
+.risk-panel {
+  margin: 28px 0;
+  padding: 22px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.risk-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.risk-heading h2 {
+  margin: 0 0 5px;
+  font-size: 1.1rem;
+}
+
+.risk-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.risk-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.risk-level {
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+}
+
+.risk-score {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.risk-low {
+  border-color: rgba(61, 220, 132, 0.35);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.risk-medium {
+  border-color: rgba(245, 176, 67, 0.35);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.risk-high {
+  border-color: rgba(244, 99, 111, 0.35);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.risk-unknown {
+  color: var(--text-muted);
+}
+
+#riskResult h3 {
+  margin: 22px 0 10px;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.risk-list {
+  margin: 0;
+  padding: 0 0 0 20px;
+  color: var(--text-muted);
+  font-size: 0.87rem;
+}
+
+.risk-list li {
+  padding: 4px 0;
+  line-height: 1.6;
+}
+
+.risk-disclaimer {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+#riskReload:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+@media (max-width: 600px) {
+  .risk-panel {
+    padding: 16px;
+  }
+
+  .risk-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .risk-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .risk-score {
+    font-size: 1.35rem;
+  }
+}
+
+/* ===== Side-by-side Security Dashboard ===== */
+
+.security-dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.log-panel {
+  min-width: 0;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.log-panel .result {
+  min-width: 0;
+}
+
+.security-dashboard .risk-panel {
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+}
+
+/* Stack panels when the available width is limited */
+
+@media (max-width: 1100px) {
+  .security-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .log-panel {
+    padding: 14px;
+  }
+
+  .security-dashboard .risk-panel {
+    padding: 16px;
+  }
 }

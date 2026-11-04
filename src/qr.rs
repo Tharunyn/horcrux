@@ -46,6 +46,8 @@ pub enum MessageType {
     SigningPackage = 3,
     /// Participant -> coordinator: the finished signature share (round 2).
     SignatureShare = 4,
+    /// Encrypted HORCRUX share file transport.
+    EncryptedShard = 5,
 }
 
 impl MessageType {
@@ -56,6 +58,7 @@ impl MessageType {
             2 => Some(MessageType::Commitment),
             3 => Some(MessageType::SigningPackage),
             4 => Some(MessageType::SignatureShare),
+            5 => Some(MessageType::EncryptedShard),
             _ => None,
         }
     }
@@ -345,11 +348,11 @@ pub fn assemble_message(
 /// Binary header of a PNG file, used to auto-detect QR images by content.
 const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
 
-/// Encode a single frame as a PNG QR code saved to `path`.
+/// Encode a single frame as an in-memory PNG QR code image.
 ///
 /// The QR encodes the frame's base58 text (byte mode). `scale` is the pixel
 /// size of each module, and a standard quiet zone of four modules is added.
-pub fn write_qr_png(frame: &Frame, path: &std::path::Path, scale: u32) -> Result<(), Error> {
+pub fn encode_qr_png_bytes(frame: &Frame, scale: u32) -> Result<Vec<u8>, Error> {
     let text = frame.to_base58();
     let code = qrcode::QrCode::new(text.as_bytes())
         .map_err(|e| Error::Qr(format!("failed to encode QR code: {e}")))?;
@@ -363,7 +366,7 @@ pub fn write_qr_png(frame: &Frame, path: &std::path::Path, scale: u32) -> Result
         for (col, color) in module_row.iter().enumerate() {
             if color == &qrcode::Color::Dark {
                 let x = (col as u32 + quiet) * scale;
-                let y = row as u32 * scale;
+                let y = (row as u32 + quiet) * scale;
                 for dy in 0..scale {
                     for dx in 0..scale {
                         img.put_pixel(x + dx, y + dy, image::Luma([0u8]));
@@ -372,15 +375,27 @@ pub fn write_qr_png(frame: &Frame, path: &std::path::Path, scale: u32) -> Result
             }
         }
     }
-    img.save(path)
-        .map_err(|e| Error::Qr(format!("failed to write QR image {}: {e}", path.display())))?;
-    Ok(())
+
+    let mut bytes = Vec::new();
+    img.write_to(
+        &mut std::io::Cursor::new(&mut bytes),
+        image::ImageFormat::Png,
+    )
+    .map_err(|e| Error::Qr(format!("failed to encode QR PNG: {e}")))?;
+    Ok(bytes)
 }
 
-/// Decode a single frame from a PNG QR code image.
-pub fn read_qr_png(path: &std::path::Path) -> Result<Frame, Error> {
-    let img = image::open(path)
-        .map_err(|e| Error::Qr(format!("failed to read image {}: {e}", path.display())))?
+/// Encode a single frame as a PNG QR code saved to `path`.
+pub fn write_qr_png(frame: &Frame, path: &std::path::Path, scale: u32) -> Result<(), Error> {
+    let bytes = encode_qr_png_bytes(frame, scale)?;
+    std::fs::write(path, bytes)
+        .map_err(|e| Error::Qr(format!("failed to write QR image {}: {e}", path.display())))
+}
+
+/// Decode a single frame from in-memory PNG QR code image bytes.
+pub fn decode_qr_png_bytes(bytes: &[u8]) -> Result<Frame, Error> {
+    let img = image::load_from_memory(bytes)
+        .map_err(|e| Error::Qr(format!("failed to read QR image: {e}")))?
         .to_luma8();
     let (width, height) = (img.width() as usize, img.height() as usize);
     let mut grid = rqrr::PreparedImage::prepare_from_greyscale(width, height, |x, y| {
@@ -392,6 +407,68 @@ pub fn read_qr_png(path: &std::path::Path) -> Result<Frame, Error> {
         .find_map(|g| g.decode().ok())
         .ok_or_else(|| Error::Qr("no decodable QR code found in image".into()))?;
     Frame::from_base58(&text)
+}
+
+/// Decode a single frame from a PNG QR code image file.
+pub fn read_qr_png(path: &std::path::Path) -> Result<Frame, Error> {
+    let bytes = std::fs::read(path)
+        .map_err(|e| Error::Qr(format!("failed to read image {}: {e}", path.display())))?;
+    decode_qr_png_bytes(&bytes)
+}
+
+/// Extract the encrypted shard/share payload from a single-frame QR image.
+pub fn shard_payload_from_frame(frame: &Frame) -> Result<Vec<u8>, Error> {
+    if frame.message_type != MessageType::EncryptedShard {
+        return Err(Error::Qr(
+            "QR image does not contain an encrypted shard/share".into(),
+        ));
+    }
+    if frame.total != 1 {
+        return Err(Error::Qr(format!(
+            "QR image carries frame {}/{}; shard/share imports must be single-frame",
+            frame.index + 1,
+            frame.total
+        )));
+    }
+    Ok(frame.payload.clone())
+}
+
+/// Extract the encrypted shard/share payload from a QR PNG file.
+pub fn shard_payload_from_qr_png(path: &std::path::Path) -> Result<Vec<u8>, Error> {
+    let frame = read_qr_png(path)?;
+    shard_payload_from_frame(&frame)
+}
+
+/// Extract the encrypted shard/share payload from in-memory QR PNG bytes.
+pub fn shard_payload_from_qr_png_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
+    let frame = decode_qr_png_bytes(bytes)?;
+    shard_payload_from_frame(&frame)
+}
+
+/// Stage an encrypted shard/share payload as a uniquely named `.hx` file in
+/// `dir`, returning its path.
+pub fn stage_shard_payload(
+    payload: &[u8],
+    dir: &std::path::Path,
+) -> Result<std::path::PathBuf, Error> {
+    std::fs::create_dir_all(dir).map_err(Error::Io)?;
+    let unique: [u8; 8] = rand::random();
+    let path = dir.join(format!("horcrux-qr-import-{}.hx", hex::encode(unique)));
+    std::fs::write(&path, payload).map_err(Error::Io)?;
+    Ok(path)
+}
+
+/// Stage a single-frame shard/share QR PNG to a temporary `.hx` file.
+pub fn stage_shard_from_qr_png(path: &std::path::Path) -> Result<std::path::PathBuf, Error> {
+    let payload = shard_payload_from_qr_png(path)?;
+    stage_shard_payload(&payload, &std::env::temp_dir())
+}
+
+/// Stage a single-frame shard/share QR PNG, provided as bytes, to a temporary
+/// `.hx` file.
+pub fn stage_shard_from_qr_png_bytes(bytes: &[u8]) -> Result<std::path::PathBuf, Error> {
+    let payload = shard_payload_from_qr_png_bytes(bytes)?;
+    stage_shard_payload(&payload, &std::env::temp_dir())
 }
 
 /// Render one frame as a printable QR code using unicode half-blocks. A quiet
@@ -754,6 +831,85 @@ mod tests {
 
         let ids = list_participant_ids(dir.path(), "commit").expect("list");
         assert_eq!(ids, vec![1, 3]);
+    }
+
+    #[test]
+    fn shard_payload_round_trips_through_png_and_staging() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let payload = vec![0x77u8; 83];
+        let paths = write_message_transport(
+            dir.path(),
+            "shard-1-qr",
+            Transport::Qr,
+            MessageType::EncryptedShard,
+            session(),
+            &payload,
+        )
+        .expect("write shard qr");
+        assert_eq!(paths.len(), 1);
+
+        let extracted = shard_payload_from_qr_png(&paths[0]).expect("extract payload");
+        assert_eq!(extracted, payload);
+        assert_eq!(
+            shard_payload_from_qr_png_bytes(&std::fs::read(&paths[0]).expect("read png"))
+                .expect("extract bytes"),
+            payload
+        );
+
+        let staged = stage_shard_payload(&extracted, dir.path()).expect("stage");
+        assert_eq!(std::fs::read(&staged).expect("read staged"), payload);
+    }
+
+    #[test]
+    fn shard_payload_rejects_non_shard_qr() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("not-a-shard.png");
+        write_qr_png(
+            &Frame {
+                message_type: MessageType::Request,
+                session: session(),
+                index: 0,
+                total: 1,
+                payload: b"not a shard".to_vec(),
+            },
+            &path,
+            4,
+        )
+        .expect("write qr");
+        assert!(shard_payload_from_qr_png(&path).is_err());
+    }
+
+    #[test]
+    fn shard_payload_rejects_multi_frame_qr() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("multi.png");
+        write_qr_png(
+            &Frame {
+                message_type: MessageType::EncryptedShard,
+                session: session(),
+                index: 0,
+                total: 2,
+                payload: b"first half".to_vec(),
+            },
+            &path,
+            4,
+        )
+        .expect("write qr");
+        assert!(shard_payload_from_qr_png(&path).is_err());
+    }
+
+    #[test]
+    fn qr_png_bytes_round_trip() {
+        let frame = Frame {
+            message_type: MessageType::Request,
+            session: session(),
+            index: 0,
+            total: 1,
+            payload: b"byte level round trip".to_vec(),
+        };
+        let bytes = encode_qr_png_bytes(&frame, 4).expect("encode bytes");
+        let decoded = decode_qr_png_bytes(&bytes).expect("decode bytes");
+        assert_eq!(decoded, frame);
     }
 
     #[test]

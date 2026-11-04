@@ -13,6 +13,7 @@ use crate::crypto;
 use crate::error::Error;
 use crate::{NONCE_LEN, SALT_LEN, TAG_LEN};
 use frost_ed25519 as frost;
+use rand::RngCore;
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -176,6 +177,29 @@ pub fn mpc_split(
     out_dir: &Path,
     passwords: &[String],
 ) -> Result<(Vec<PathBuf>, PathBuf), Error> {
+    let destinations = vec![out_dir.to_path_buf(); share_count as usize];
+    mpc_split_to(
+        key,
+        threshold,
+        share_count,
+        &destinations,
+        out_dir,
+        passwords,
+    )
+}
+
+/// Like [`mpc_split`], but writes share `i` (and its QR transport) into
+/// `destinations[i]`, so each guardian share can be placed on its own storage
+/// device in a single operation. The non-secret group package is always
+/// written to `group_dir`.
+pub fn mpc_split_to(
+    key: &k256::SecretKey,
+    threshold: u8,
+    share_count: u8,
+    destinations: &[PathBuf],
+    group_dir: &Path,
+    passwords: &[String],
+) -> Result<(Vec<PathBuf>, PathBuf), Error> {
     if threshold < 2 {
         return Err(Error::InvalidParams(
             "FROST requires a threshold of at least 2".to_string(),
@@ -192,6 +216,12 @@ pub fn mpc_split(
             passwords.len()
         )));
     }
+    if destinations.len() != share_count as usize {
+        return Err(Error::InvalidParams(format!(
+            "expected {share_count} destinations, got {}",
+            destinations.len()
+        )));
+    }
 
     let seed: [u8; 32] = key.to_bytes().into();
     let signing_key = frost_signing_key(&seed)?;
@@ -206,7 +236,7 @@ pub fn mpc_split(
     )
     .map_err(|e| Error::Mpc(e.to_string()))?;
 
-    fs::create_dir_all(out_dir)?;
+    fs::create_dir_all(group_dir)?;
 
     let mut paths = Vec::with_capacity(secret_shares.len());
     for (i, (identifier, secret_share)) in secret_shares.iter().enumerate() {
@@ -229,12 +259,26 @@ pub fn mpc_split(
             nonce,
             sealed,
         };
+        let out_dir = &destinations[i];
+        fs::create_dir_all(out_dir)?;
         let path = out_dir.join(format!("mpc-{id}.hx"));
         share.write(&path)?;
+        // Generate QR image(s) containing the exact encrypted share bytes.
+        let mut session = [0u8; crate::qr::SESSION_LEN];
+        rand::rngs::OsRng.fill_bytes(&mut session);
+
+        crate::qr::write_message_transport(
+            out_dir,
+            &format!("mpc-{id}-qr"),
+            crate::qr::Transport::Qr,
+            crate::qr::MessageType::EncryptedShard,
+            session,
+            &share.to_bytes(),
+        )?;
         paths.push(path);
     }
 
-    let group_path = out_dir.join(GROUP_PUB_FILENAME);
+    let group_path = group_dir.join(GROUP_PUB_FILENAME);
     let group_bytes = pubkey_package
         .serialize()
         .map_err(|e| Error::Mpc(e.to_string()))?;

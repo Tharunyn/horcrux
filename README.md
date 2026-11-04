@@ -22,16 +22,21 @@ Unlike traditional wallets, HORCRUX treats key management as an entire lifecycle
 - Core Concepts
 - System Workflow
 - Project Architecture
+- Project Modules
 - Technology Stack
 - Repository Structure
 - Installation
 - Building
 - Usage
 - CLI Commands
+- Interactive TUI & Local Web UI
+- Access Logging, AI Checks & Risk Assessment
 - Cryptographic Design
 - Security Model
 - Threat Model
-- Project Modules
+- Demo Script
+- Marketing Site
+- Contributing & CI
 - Future Roadmap
 - References
 - License
@@ -1046,9 +1051,12 @@ Split screens, shown once with an explicit "shown once" label.
 ## Local Web UI
 
 A browser-based alternative to the TUI, for guardians who'd rather fill in a
-form than navigate a terminal. Covers the exact same Solana MVP flows —
-Access log, Verify, Init, Sign, MPC split/sign — backed by the same library
-code as the CLI and TUI.
+form than navigate a terminal. Covers the Solana MVP flows — Access log,
+Verify, Init, Sign, standalone Reconstruct, MPC split/sign, and the full
+air-gapped `qr-request`/`qr-commit`/`qr-package`/`qr-share`/`qr-finalize`
+protocol — backed by the same library code as the CLI and TUI. Split forms can
+assign each shard/share to a different connected device (for example one USB
+drive per guardian) in a single operation.
 
 ```bash
 horcrux web

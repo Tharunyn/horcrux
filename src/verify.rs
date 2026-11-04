@@ -64,7 +64,9 @@ pub fn verify_files(paths: &[std::path::PathBuf], password: Option<&str>) -> Vec
     paths.iter().map(|p| verify_one(p, password)).collect()
 }
 
-/// Verify a single file, detecting its kind from the magic bytes.
+/// Verify a single file, detecting its kind from the magic bytes. PNG QR
+/// images are decoded to the encrypted shard/share payload they carry first,
+/// so the same checks apply to on-disk files and QR transports.
 fn verify_one(path: &Path, password: Option<&str>) -> Report {
     let bytes = match std::fs::read(path) {
         Ok(bytes) => bytes,
@@ -72,6 +74,20 @@ fn verify_one(path: &Path, password: Option<&str>) -> Report {
             eprintln!("{}: I/O error: {e}", path.display());
             return Report::invalid(path);
         }
+    };
+
+    let bytes = if is_png(path, &bytes) {
+        match crate::qr::decode_qr_png_bytes(&bytes)
+            .and_then(|frame| crate::qr::shard_payload_from_frame(&frame))
+        {
+            Ok(payload) => payload,
+            Err(e) => {
+                eprintln!("{}: {e}", path.display());
+                return Report::invalid(path);
+            }
+        }
+    } else {
+        bytes
     };
 
     match magic_of(&bytes) {
@@ -153,6 +169,16 @@ pub fn consistency_error(reports: &[Report]) -> Option<String> {
 }
 
 /// The file kind implied by the magic bytes, if any.
+fn is_png(path: &Path, bytes: &[u8]) -> bool {
+    const PNG_MAGIC: &[u8] = b"\x89PNG\r\n\x1a\n";
+    let by_content = bytes.len() >= PNG_MAGIC.len() && &bytes[..PNG_MAGIC.len()] == PNG_MAGIC;
+    let by_extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("png"));
+    by_content || by_extension
+}
+
 fn magic_of(bytes: &[u8]) -> Option<Kind> {
     if bytes.len() >= 3 {
         if &bytes[..3] == crate::SHARD_MAGIC {

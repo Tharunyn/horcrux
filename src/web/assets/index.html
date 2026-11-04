@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,10 +13,15 @@
 <div class="shell">
   <aside class="rail">
     <div class="rail-brand">
-      <svg viewBox="0 0 32 32" width="22" height="22"><path d="M16 4l10 5v7c0 7.4-4.4 11.9-10 12.6C10.4 27.9 6 23.4 6 16V9l10-5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <svg viewBox="0 0 32 32" width="22" height="22">
+        <path d="M16 4l10 5v7c0 7.4-4.4 11.9-10 12.6C10.4 27.9 6 23.4 6 16V9l10-5z"
+          fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
       <span>HORCRUX</span>
     </div>
+
     <p class="rail-tag">Local console · Solana MVP</p>
+
     <nav class="rail-nav" id="railNav">
       <button class="rail-item is-active" data-section="log">
         <span class="rail-ic">⏱</span> Access log
@@ -29,231 +35,626 @@
       <button class="rail-item" data-section="sign">
         <span class="rail-ic">✎</span> Sign <em>Mode A</em>
       </button>
+      <button class="rail-item" data-section="reconstruct">
+        <span class="rail-ic">↻</span> Reconstruct <em>Mode A</em>
+      </button>
       <button class="rail-item" data-section="mpc">
         <span class="rail-ic">◈</span> MPC <em>Mode B</em>
       </button>
     </nav>
+
     <div class="rail-footer">
       <div class="token-state" id="tokenState">checking token…</div>
-      <p class="rail-hint">Bound to 127.0.0.1 only. Paths below are read from disk on this machine, never uploaded from the browser.</p>
+      <p class="rail-hint">
+        Bound to 127.0.0.1 only. Paths below are read from disk on this machine,
+        never uploaded from the browser.
+      </p>
     </div>
   </aside>
 
   <main class="content">
 
+    <!-- ACCESS LOG -->
     <section class="panel" id="section-log" data-section>
       <header class="panel-head">
         <h1>Access log</h1>
         <p>Read-only, append-only. Every shard decryption attempt this machine has recorded.</p>
       </header>
+
       <div class="toolbar">
         <label class="field-inline">
           Tail
           <input type="number" id="logTail" min="1" placeholder="all" style="width:90px" />
         </label>
-        <button class="btn btn-outline" id="logReload">Reload</button>
+        <button class="btn btn-outline" id="logReload" type="button">Reload</button>
       </div>
-      <div id="logResult" class="result"></div>
+
+      <div class="security-dashboard">
+        <section class="log-panel" aria-label="Access log entries">
+          <div id="logResult" class="result"></div>
+        </section>
+
+        <section class="risk-panel" aria-labelledby="riskHeading">
+          <div class="risk-heading">
+            <div>
+              <h2 id="riskHeading">Security risk assessment</h2>
+              <p>Deterministic analysis of recent access activity. Advisory only.</p>
+            </div>
+
+            <button class="btn btn-outline" id="riskReload" type="button">
+              Refresh risk
+            </button>
+          </div>
+
+          <div id="riskResult" class="result" aria-live="polite">
+            <p>Risk assessment has not been loaded yet.</p>
+          </div>
+        </section>
+      </div>
     </section>
 
+    <!-- VERIFY -->
     <section class="panel" id="section-verify" data-section hidden>
       <header class="panel-head">
         <h1>Verify</h1>
-        <p>Structural integrity check for shard/share files. Never decrypts into the clear, never touches the access log.</p>
+        <p>
+          Structural integrity check for shard/share files. Never decrypts into
+          the clear, never touches the access log.
+        </p>
       </header>
+
       <form id="verifyForm" class="form-grid">
         <label class="field">
           <span>Files (one path per line)</span>
-          <textarea name="files" rows="4" placeholder="shards/shard-1.hx&#10;shards/shard-2.hx" required></textarea>
+          <textarea name="files" rows="4"
+            placeholder="shards/shard-1.hx&#10;shards/shard-2.hx"
+            required></textarea>
         </label>
+
         <label class="field">
           <span>Password <em>(optional — checks the AES-GCM auth tag)</em></span>
           <input type="password" name="password" autocomplete="off" />
         </label>
+
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Verify files</button>
         </div>
       </form>
+
       <div id="verifyResult" class="result"></div>
+
+      <div class="form-actions">
+        <button class="btn btn-outline" type="button" id="aiCheckButton">
+          AI Log Analysis
+        </button>
+      </div>
+
+      <p>Analyses the latest 50 access-log entries. AI results are advisory only.</p>
+      <div id="aiCheckResult" class="result" aria-live="polite"></div>
     </section>
 
+    <!-- MODE A SPLIT -->
     <section class="panel" id="section-init" data-section hidden>
       <header class="panel-head">
         <h1>Init — Mode A split</h1>
         <p>Split a private key into encrypted shard files with Shamir's Secret Sharing.</p>
       </header>
+
       <form id="initForm" class="form-grid">
         <div class="field-row">
           <label class="field">
             <span>Threshold</span>
-            <input type="number" name="threshold" value="2" min="1" required />
+            <input type="number" id="initThreshold" name="threshold"
+              value="2" min="1" max="255" required />
           </label>
+
           <label class="field">
             <span>Shares</span>
-            <input type="number" name="shares" value="3" min="1" required />
+            <input type="number" id="initShares" name="shares"
+              value="3" min="1" max="255" required />
           </label>
         </div>
+
         <label class="field checkbox-field">
           <input type="checkbox" name="generate" />
           <span>Generate a disposable test key <em>(shown once — never use for real funds)</em></span>
         </label>
+
         <label class="field">
           <span>Private key hex <em>(64 hex chars, optional 0x — disabled when generating)</em></span>
           <input type="text" name="key_hex" autocomplete="off" spellcheck="false" />
         </label>
+
         <label class="field">
           <span>Output directory</span>
           <input type="text" name="out_dir" value="shards" />
         </label>
-        <label class="field">
-          <span>Password <em>(applied to every shard)</em></span>
-          <input type="password" name="password" autocomplete="off" required />
-        </label>
+
+        <div class="field">
+          <span>Individual shard passwords</span>
+          <div id="initPasswordFields" class="password-fields"></div>
+        </div>
+
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Split key</button>
         </div>
       </form>
+
       <div id="initResult" class="result"></div>
     </section>
 
+    <!-- MODE A SIGN -->
     <section class="panel" id="section-sign" data-section hidden>
       <header class="panel-head">
         <h1>Sign — Mode A</h1>
-        <p>Reconstruct the key from a threshold of shards, sign a Solana transfer offline, zeroize, optionally broadcast.</p>
+        <p>
+          Reconstruct the key from a threshold of shards, sign a Solana transfer
+          offline, zeroize, optionally broadcast.
+        </p>
       </header>
+
       <form id="signForm" class="form-grid">
         <label class="field">
           <span>Shard files (one path per line)</span>
-          <textarea name="shards" rows="3" placeholder="shards/shard-1.hx&#10;shards/shard-2.hx" required></textarea>
+          <textarea id="signShardPaths" name="shards" rows="3"
+            placeholder="shards/shard-1.hx&#10;shards/shard-2.hx"
+            required></textarea>
         </label>
-        <label class="field">
-          <span>Password <em>(applied to every selected shard)</em></span>
-          <input type="password" name="password" autocomplete="off" required />
-        </label>
+
+        <div class="field-row qr-import-row">
+          <input type="file" id="qrImportInputSign" accept="image/png" multiple />
+          <button class="btn btn-outline" type="button" id="qrImportBtnSign">Import from QR</button>
+        </div>
+
+        <div class="field">
+          <span>Shard access</span>
+          <div id="signPasswordFields" class="password-fields"></div>
+          <em>For each shard, choose where it is stored, then enter its password. At least the threshold number of passwords is required.</em>
+        </div>
+
         <div class="field-row">
           <label class="field">
             <span>Recipient address (base58)</span>
             <input type="text" name="to" required />
           </label>
+
           <label class="field">
             <span>Lamports</span>
             <input type="number" name="lamports" min="0" required />
           </label>
         </div>
+
         <label class="field">
           <span>Blockhash <em>(base58 — leave empty to fetch when broadcasting)</em></span>
           <input type="text" name="blockhash" />
         </label>
+
         <div class="field-row">
           <label class="field checkbox-field">
             <input type="checkbox" name="broadcast" />
             <span>Broadcast to a Solana cluster</span>
           </label>
+
           <label class="field">
             <span>RPC URL <em>(optional override)</em></span>
             <input type="text" name="rpc_url" placeholder="http://127.0.0.1:8899" />
           </label>
         </div>
+
         <label class="field checkbox-field force-field" hidden>
           <input type="checkbox" name="force" />
           <span>Force through the audit block <em>(overridden attempts are still logged)</em></span>
         </label>
+
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Sign transaction</button>
         </div>
       </form>
+
       <div id="signResult" class="result"></div>
     </section>
 
+    <!-- MODE A RECONSTRUCT -->
+    <section class="panel" id="section-reconstruct" data-section hidden>
+      <header class="panel-head">
+        <h1>Reconstruct — standalone</h1>
+        <p>
+          Recover the signing key from a threshold of Mode A shards without
+          building or broadcasting a transaction.
+        </p>
+      </header>
+
+      <form id="reconstructForm" class="form-grid">
+        <label class="field">
+          <span>Shard files (one path per line)</span>
+          <textarea id="reconstructShardPaths" name="shards" rows="3"
+            placeholder="shards/shard-1.hx&#10;shards/shard-2.hx"
+            required></textarea>
+        </label>
+
+        <div class="field-row qr-import-row">
+          <input type="file" id="qrImportInputReconstruct" accept="image/png" multiple />
+          <button class="btn btn-outline" type="button" id="qrImportBtnReconstruct">Import from QR</button>
+        </div>
+
+        <div class="field">
+          <span>Shard access</span>
+          <div id="reconstructPasswordFields" class="password-fields"></div>
+          <em>Choose where each shard is stored and enter its password. At least the threshold number of passwords is required.</em>
+        </div>
+
+        <label class="field checkbox-field force-field" hidden>
+          <input type="checkbox" name="force" />
+          <span>Force through the audit block <em>(overridden attempts are still logged)</em></span>
+        </label>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit">Reconstruct key</button>
+        </div>
+      </form>
+
+      <div id="reconstructResult" class="result"></div>
+    </section>
+
+    <!-- MODE B -->
     <section class="panel" id="section-mpc" data-section hidden>
       <header class="panel-head">
         <h1>MPC — Mode B</h1>
-        <p>Dealer-split into FROST key shares, or sign with a threshold subset. The full key is never reconstructed on any machine.</p>
+        <p>
+          Dealer-split into FROST key shares, or sign with a threshold subset.
+          The full key is never reconstructed on any machine.
+        </p>
       </header>
+
       <div class="tabbar">
-        <button class="tab is-active" data-mpc-tab="split">Split</button>
-        <button class="tab" data-mpc-tab="sign">Sign</button>
+        <button class="tab is-active" data-mpc-tab="split" type="button">Split</button>
+        <button class="tab" data-mpc-tab="sign" type="button">Sign</button>
+        <button class="tab" data-mpc-tab="qr" type="button">QR air-gap</button>
       </div>
 
+      <!-- MODE B SPLIT -->
       <form id="mpcSplitForm" class="form-grid mpc-tab" data-mpc-tab="split">
         <div class="field-row">
           <label class="field">
             <span>Threshold <em>(min 2)</em></span>
-            <input type="number" name="threshold" value="2" min="2" required />
+            <input type="number" id="mpcThreshold" name="threshold"
+              value="2" min="2" max="255" required />
           </label>
+
           <label class="field">
             <span>Shares</span>
-            <input type="number" name="shares" value="3" min="2" required />
+            <input type="number" id="mpcShares" name="shares"
+              value="3" min="2" max="255" required />
           </label>
         </div>
+
         <label class="field checkbox-field">
           <input type="checkbox" name="generate" />
           <span>Generate a disposable test key <em>(shown once)</em></span>
         </label>
+
         <label class="field">
           <span>Private key hex</span>
           <input type="text" name="key_hex" autocomplete="off" spellcheck="false" />
         </label>
+
         <label class="field">
           <span>Output directory</span>
           <input type="text" name="out_dir" value="mpc" />
         </label>
-        <label class="field">
-          <span>Password <em>(applied to every share)</em></span>
-          <input type="password" name="password" autocomplete="off" required />
-        </label>
+
+        <div class="field">
+          <span>Individual share passwords</span>
+          <div id="mpcSplitPasswordFields" class="password-fields"></div>
+        </div>
+
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Split key (FROST)</button>
         </div>
       </form>
 
-      <form id="mpcSignForm" class="form-grid mpc-tab" data-mpc-tab="sign" hidden>
+      <!-- MODE B SIGN -->
+      <form id="mpcSignForm" class="form-grid mpc-tab"
+        data-mpc-tab="sign" hidden>
+
         <label class="field">
           <span>Key share files (one path per line)</span>
-          <textarea name="shares" rows="3" placeholder="mpc/mpc-1.hx&#10;mpc/mpc-2.hx" required></textarea>
+          <textarea id="mpcSignSharePaths" name="shares" rows="3"
+            placeholder="mpc/mpc-1.hx&#10;mpc/mpc-2.hx"
+            required></textarea>
         </label>
+
+        <div class="field-row qr-import-row">
+          <input type="file" id="qrImportInputMpcSign" accept="image/png" multiple />
+          <button class="btn btn-outline" type="button" id="qrImportBtnMpcSign">Import from QR</button>
+        </div>
+
         <label class="field">
           <span>Group directory <em>(contains group.pub)</em></span>
           <input type="text" name="group_dir" value="mpc" />
         </label>
-        <label class="field">
-          <span>Password <em>(applied to every selected share)</em></span>
-          <input type="password" name="password" autocomplete="off" required />
-        </label>
+
+        <div class="field">
+          <span>Share access</span>
+          <div id="mpcSignPasswordFields" class="password-fields"></div>
+          <em>For each share, choose where it is stored, then enter its password. At least the threshold number of passwords is required.</em>
+        </div>
+
         <div class="field-row">
           <label class="field">
             <span>Recipient address (base58)</span>
             <input type="text" name="to" required />
           </label>
+
           <label class="field">
             <span>Lamports</span>
             <input type="number" name="lamports" min="0" required />
           </label>
         </div>
+
         <label class="field">
           <span>Blockhash <em>(optional — fetched when broadcasting)</em></span>
           <input type="text" name="blockhash" />
         </label>
+
         <div class="field-row">
           <label class="field checkbox-field">
             <input type="checkbox" name="broadcast" />
             <span>Broadcast to a Solana cluster</span>
           </label>
+
           <label class="field">
             <span>RPC URL <em>(optional override)</em></span>
             <input type="text" name="rpc_url" placeholder="http://127.0.0.1:8899" />
           </label>
         </div>
+
         <label class="field checkbox-field force-field" hidden>
           <input type="checkbox" name="force" />
           <span>Force through the audit block <em>(overridden attempts are still logged)</em></span>
         </label>
+
         <div class="form-actions">
           <button class="btn btn-primary" type="submit">Sign with FROST</button>
         </div>
       </form>
 
       <div id="mpcResult" class="result"></div>
+
+      <!-- MODE B QR AIR-GAP -->
+      <div class="mpc-tab qr-airgap" data-mpc-tab="qr" hidden>
+        <p class="qr-intro">
+          Run the five FROST protocol messages over real air-gap artifacts. On
+          the coordinator machine export the PNG or <code>.hx3</code> files,
+          carry them to each guardian, import the guardian's response here, and
+          carry it back. No process ever holds more than one key share.
+        </p>
+
+        <form id="qrImportForm" class="form-grid qr-step">
+          <h2>Import air-gap artifacts</h2>
+          <p class="qr-step-hint">
+            Imports signing requests, commitments, signing packages, or
+            signature shares into the air-gap directory.
+          </p>
+
+          <label class="field">
+            <span>Air-gap directory</span>
+            <input type="text" name="dir" value="qr" />
+          </label>
+
+          <div class="field-row qr-import-row">
+            <input type="file" id="qrImportFiles" accept=".png,.hx3" multiple />
+            <button class="btn btn-outline" type="submit">Import artifacts</button>
+          </div>
+
+          <div id="qrImportResult" class="result"></div>
+        </form>
+
+        <form id="qrRequestForm" class="form-grid qr-step">
+          <h2>1 · Coordinator — signing request</h2>
+
+          <label class="field">
+            <span>Group directory <em>(contains group.pub)</em></span>
+            <input type="text" name="group_dir" value="mpc" />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Recipient address (base58)</span>
+              <input type="text" name="to" required />
+            </label>
+
+            <label class="field">
+              <span>Lamports</span>
+              <input type="number" name="lamports" min="0" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Recent blockhash (base58) <em>(required — the QR flow is offline)</em></span>
+            <input type="text" name="blockhash" required />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Air-gap directory</span>
+              <input type="text" name="dir" value="qr" />
+            </label>
+
+            <label class="field">
+              <span>Transport</span>
+              <select name="format">
+                <option value="qr">QR PNG images</option>
+                <option value="hx3">.hx3 files</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Write signing request</button>
+          </div>
+
+          <div id="qrRequestResult" class="result"></div>
+        </form>
+
+        <form id="qrCommitForm" class="form-grid qr-step">
+          <h2>2 · Participant — commitment</h2>
+          <p class="qr-step-hint">
+            Import the request first. Round-1 nonces are kept locally until
+            step 4 and are never written into the air-gap directory.
+          </p>
+
+          <label class="field">
+            <span>Key share file</span>
+            <input type="text" name="share" placeholder="mpc/mpc-1.hx" required />
+          </label>
+
+          <label class="field">
+            <span>Share password</span>
+            <input type="password" name="password" autocomplete="off" required />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Air-gap directory</span>
+              <input type="text" name="dir" value="qr" />
+            </label>
+
+            <label class="field">
+              <span>Transport</span>
+              <select name="format">
+                <option value="qr">QR PNG images</option>
+                <option value="hx3">.hx3 files</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Local nonce file <em>(optional — defaults next to the share)</em></span>
+            <input type="text" name="nonce_file" placeholder="mpc/mpc-1.hx.qr-nonce" />
+          </label>
+
+          <label class="field checkbox-field force-field" hidden>
+            <input type="checkbox" name="force" />
+            <span>Force through the audit block <em>(overridden attempts are still logged)</em></span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Write commitment</button>
+          </div>
+
+          <div id="qrCommitResult" class="result"></div>
+        </form>
+
+        <form id="qrPackageForm" class="form-grid qr-step">
+          <h2>3 · Coordinator — signing package</h2>
+          <p class="qr-step-hint">
+            Import the guardian commitments first, then assemble the package
+            once the threshold is met.
+          </p>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Air-gap directory</span>
+              <input type="text" name="dir" value="qr" />
+            </label>
+
+            <label class="field">
+              <span>Transport</span>
+              <select name="format">
+                <option value="qr">QR PNG images</option>
+                <option value="hx3">.hx3 files</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Build signing package</button>
+          </div>
+
+          <div id="qrPackageResult" class="result"></div>
+        </form>
+
+        <form id="qrShareForm" class="form-grid qr-step">
+          <h2>4 · Participant — signature share</h2>
+          <p class="qr-step-hint">
+            Import the signing package first. This consumes and deletes the
+            local round-1 nonce file.
+          </p>
+
+          <label class="field">
+            <span>Key share file</span>
+            <input type="text" name="share" placeholder="mpc/mpc-1.hx" required />
+          </label>
+
+          <label class="field">
+            <span>Share password</span>
+            <input type="password" name="password" autocomplete="off" required />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Air-gap directory</span>
+              <input type="text" name="dir" value="qr" />
+            </label>
+
+            <label class="field">
+              <span>Transport</span>
+              <select name="format">
+                <option value="qr">QR PNG images</option>
+                <option value="hx3">.hx3 files</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Local nonce file <em>(optional — same file used in step 2)</em></span>
+            <input type="text" name="nonce_file" placeholder="mpc/mpc-1.hx.qr-nonce" />
+          </label>
+
+          <label class="field checkbox-field force-field" hidden>
+            <input type="checkbox" name="force" />
+            <span>Force through the audit block <em>(overridden attempts are still logged)</em></span>
+          </label>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Write signature share</button>
+          </div>
+
+          <div id="qrShareResult" class="result"></div>
+        </form>
+
+        <form id="qrFinalizeForm" class="form-grid qr-step">
+          <h2>5 · Coordinator — finalize</h2>
+          <p class="qr-step-hint">
+            Import the guardian signature shares first. The aggregated
+            signature is verified against the group key before it is returned.
+          </p>
+
+          <label class="field">
+            <span>Air-gap directory</span>
+            <input type="text" name="dir" value="qr" />
+          </label>
+
+          <div class="field-row">
+            <label class="field checkbox-field">
+              <input type="checkbox" name="broadcast" />
+              <span>Broadcast to a Solana cluster</span>
+            </label>
+
+            <label class="field">
+              <span>RPC URL <em>(optional override)</em></span>
+              <input type="text" name="rpc_url" placeholder="http://127.0.0.1:8899" />
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit">Finalize signature</button>
+          </div>
+
+          <div id="qrFinalizeResult" class="result"></div>
+        </form>
+      </div>
     </section>
 
   </main>

@@ -4,7 +4,8 @@
 //! is never reconstructed and the result is broadcastable.
 
 use horcrux::error::Error;
-use horcrux::mpc::{mpc_sign, mpc_split, shard_ids};
+use horcrux::mpc::{mpc_sign, mpc_split, mpc_split_to, shard_ids};
+use horcrux::qr;
 use horcrux::tx::{TxParams, derive_address};
 use horcrux::{SignedOutput, init_shards, sign_transaction_from_mpc_shares};
 use k256::SecretKey;
@@ -66,6 +67,30 @@ fn mpc_sign_from_any_two_of_three_recovers_sender() {
             .expect("sign");
         assert_eq!(out.from, params_for(&key).from);
         assert!(verify_output(&out), "broadcastable transaction");
+    }
+}
+
+#[test]
+fn mpc_sign_from_staged_qr_shares() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let key = key();
+    let pws = passwords(3, "guardian");
+    let (_paths, group) = mpc_split(&key, 2, 3, dir.path(), &pws).expect("split");
+
+    let staged: Vec<_> = (1..=2)
+        .map(|id| {
+            qr::stage_shard_from_qr_png(&dir.path().join(format!("mpc-{id}-qr-0.png")))
+                .expect("stage share qr")
+        })
+        .collect();
+
+    let out = sign_transaction_from_mpc_shares(&staged, &pws[..2], &group, params_for(&key))
+        .expect("sign");
+    assert_eq!(out.from, params_for(&key).from);
+    assert!(verify_output(&out));
+
+    for path in staged {
+        let _ = std::fs::remove_file(path);
     }
 }
 
@@ -135,6 +160,40 @@ fn mixed_sss_and_mpc_shares_are_rejected() {
     // A FROST share file cannot be parsed as an SSS shard and vice versa.
     assert!(horcrux::shard::Shard::read(&mpc_paths[0]).is_err());
     assert!(horcrux::mpc::FrostShare::read(&sss_paths[0]).is_err());
+}
+
+#[test]
+fn shares_can_be_written_to_separate_devices() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let group_dir = dir.path().join("coordinator");
+    let device_a = dir.path().join("device-a");
+    let device_b = dir.path().join("device-b");
+    let device_c = dir.path().join("device-c");
+    let key = key();
+    let pws = passwords(3, "guardian");
+    let destinations = vec![device_a.clone(), device_b.clone(), device_c.clone()];
+
+    let (paths, group) =
+        mpc_split_to(&key, 2, 3, &destinations, &group_dir, &pws).expect("split to devices");
+
+    assert_eq!(paths.len(), 3);
+    assert_eq!(group.parent(), Some(group_dir.as_path()));
+
+    for (path, destination) in paths.iter().zip(&destinations) {
+        assert_eq!(path.parent(), Some(destination.as_path()));
+        assert!(path.is_file());
+        assert!(
+            destination
+                .read_dir()
+                .expect("device dir")
+                .flatten()
+                .any(|entry| entry.file_name().to_string_lossy().contains("-qr-"))
+        );
+    }
+
+    let message = b"distributed share split";
+    let sig = mpc_sign(&paths[..2], &pws[..2], &group, message, |_, _| {}).expect("sign");
+    assert!(verify_dalek(&sig.verifying_key, message, &sig.signature));
 }
 
 #[test]

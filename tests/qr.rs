@@ -186,6 +186,25 @@ fn qr_protocol_signs_and_verifies_for_every_threshold_pair() {
 }
 
 #[test]
+fn share_qr_png_bytes_extract_payload_and_stage() {
+    let split_dir = tempfile::tempdir().expect("split tempdir");
+    let key = key();
+    let pws = passwords(3, "guardian");
+    let (paths, _group) = mpc_split(&key, 2, 3, split_dir.path(), &pws).expect("split");
+    let png = std::fs::read(split_dir.path().join("mpc-1-qr-0.png")).expect("read qr png");
+
+    let payload = qr::shard_payload_from_qr_png_bytes(&png).expect("extract payload");
+    assert_eq!(payload, std::fs::read(&paths[0]).expect("read share"));
+
+    let staged = qr::stage_shard_from_qr_png_bytes(&png).expect("stage qr png");
+    assert_eq!(
+        std::fs::read(&staged).expect("read staged share"),
+        std::fs::read(&paths[0]).expect("read share")
+    );
+    let _ = std::fs::remove_file(staged);
+}
+
+#[test]
 fn commitment_and_share_files_are_real_qr_pngs() {
     let split_dir = tempfile::tempdir().expect("split tempdir");
     let key = key();

@@ -1,7 +1,8 @@
 //! A local, loopback-only HTTP UI covering the same Solana MVP flows as the
 //! TUI (`src/tui`) — Access log, Verify, Init (Mode A split), Sign (Mode A),
-//! and MPC split/sign (Mode B) — for guardians who would rather use a browser
-//! than a terminal.
+//! standalone Reconstruct, MPC split/sign (Mode B), and the air-gapped QR
+//! `qr-*` protocol — for guardians who would rather use a browser than a
+//! terminal.
 //!
 //! Security model, deliberately narrower than a general-purpose web app:
 //!
@@ -19,10 +20,13 @@
 //! - Exactly like the CLI and TUI, an audit `Block` verdict refuses the
 //!   operation unless the request explicitly sets `force`; a `Warn` verdict
 //!   proceeds but the warnings are returned alongside the result.
-//! - No response ever includes a reconstructed private key or seed, with the
-//!   same one exception as the CLI/TUI: a freshly **generated** disposable
-//!   test key on Init/MPC-split, returned once and never persisted.
+//! - Signing and MPC responses never include a reconstructed private key or
+//!   seed. The only exceptions are a freshly **generated** disposable test key
+//!   on Init/MPC-split, and the explicit standalone Reconstruct action (which
+//!   requires the shard passwords and is clearly labelled), both returned once
+//!   and never persisted by the server.
 
+pub(crate) mod devices;
 mod handlers;
 
 use axum::Router;
@@ -113,12 +117,26 @@ pub async fn run(port: u16) -> anyhow::Result<()> {
     });
 
     let api = Router::new()
+        // Existing endpoints
         .route("/log", get(handlers::log))
+        .route("/ai-check", get(handlers::ai_check))
+        .route("/risk-assessment", get(handlers::risk_assessment))
+        .route("/devices", get(handlers::devices))
         .route("/verify", post(handlers::verify))
+        .route("/reconstruct", post(handlers::reconstruct))
         .route("/init", post(handlers::init))
         .route("/sign", post(handlers::sign))
         .route("/mpc-split", post(handlers::mpc_split))
         .route("/mpc-sign", post(handlers::mpc_sign))
+        .route("/qr-request", post(handlers::qr_request))
+        .route("/qr-commit", post(handlers::qr_commit))
+        .route("/qr-package", post(handlers::qr_package))
+        .route("/qr-share", post(handlers::qr_share))
+        .route("/qr-finalize", post(handlers::qr_finalize))
+        .route("/qr-import", post(handlers::qr_import))
+        .route("/qr-image", get(handlers::qr_image))
+        .route("/shard-qr", post(handlers::shard_qr))
+        .route("/shard-qr-import", post(handlers::shard_qr_import))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_token))
         .with_state(state.clone());
 

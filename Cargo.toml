@@ -10,6 +10,7 @@ aes-gcm = "0.10"
 anyhow = "1"
 argon2 = "0.5"
 axum = "0.8"
+base64 = "0.22"
 bincode = "1"
 bitcoin = { version = "0.32", default-features = false, features = ["std"] }
 bitcoincore-rpc = "0.19.0"
@@ -41,11 +42,15 @@ solana-rpc-client = "=3.0.7"
 solana-signature = { version = "3", features = ["verify"] }
 solana-system-interface = { version = "3", features = ["bincode"] }
 solana-transaction = { version = "3", features = ["bincode"] }
+tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal"] }
 tui-input = { version = "0.15", features = ["crossterm"] }
 vsss-rs = "5.4.0"
 zeroize = "1.8"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 serde_json = "1"

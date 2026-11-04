@@ -3,7 +3,7 @@
 //! fails cleanly.
 
 use horcrux::error::Error;
-use horcrux::{SHARE_VALUE_LEN, TAG_LEN, init_shards, reconstruct};
+use horcrux::{SHARE_VALUE_LEN, TAG_LEN, init_shards, init_shards_to, reconstruct};
 use k256::SecretKey;
 use rand::rngs::OsRng;
 
@@ -30,6 +30,28 @@ fn round_trip_any_two_of_three() {
         let recovered = reconstruct(&chosen, &pws).expect("reconstruct");
         assert_eq!(recovered.to_bytes(), key.to_bytes());
     }
+}
+
+#[test]
+fn shards_can_be_written_to_separate_devices() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let device_a = dir.path().join("device-a");
+    let device_b = dir.path().join("device-b");
+    let device_c = dir.path().join("device-c");
+    let key = key();
+    let pws = passwords(3, "guardian");
+    let destinations = vec![device_a.clone(), device_b.clone(), device_c.clone()];
+
+    let paths = init_shards_to(&key, 2, 3, &destinations, &pws).expect("init to devices");
+    assert_eq!(paths.len(), 3);
+
+    for (path, destination) in paths.iter().zip(&destinations) {
+        assert_eq!(path.parent(), Some(destination.as_path()));
+        assert!(path.is_file());
+    }
+
+    let recovered = reconstruct(&paths[..2], &pws[..2]).expect("reconstruct");
+    assert_eq!(recovered.to_bytes(), key.to_bytes());
 }
 
 #[test]

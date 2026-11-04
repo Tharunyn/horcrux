@@ -1902,6 +1902,7 @@ dependencies = [
  "anyhow",
  "argon2",
  "axum",
+ "base64 0.22.1",
  "bincode",
  "bitcoin",
  "bitcoincore-rpc",
@@ -1939,6 +1940,7 @@ dependencies = [
  "tokio",
  "tui-input",
  "vsss-rs",
+ "windows-sys 0.59.0",
  "zeroize",
 ]
 

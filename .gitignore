@@ -3,3 +3,19 @@
 /test-ledger
 /horcrux-access.log
 .env
+/shards-test
+/mpc
+
+# Local test artifacts
+/test/
+project.zip
+ai-demo.log
+
+# Private key material
+*.pem
+*.key
+*.seed
+
+# Environment files
+.env.*
+!.env.example

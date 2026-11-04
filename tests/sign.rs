@@ -3,6 +3,7 @@
 //! the signature verifies against the serialized message.
 
 use horcrux::error::Error;
+use horcrux::qr;
 use horcrux::tx::{TxParams, derive_address};
 use horcrux::{SignedOutput, init_shards, sign_transaction_from_shards};
 use k256::SecretKey;
@@ -72,6 +73,29 @@ fn signed_output_is_deterministic_for_same_inputs() {
     assert_eq!(a.from, b.from);
     assert_eq!(a.signature, b.signature);
     assert_eq!(a.raw_base58, b.raw_base58);
+}
+
+#[test]
+fn sign_from_staged_qr_shards() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let key = key();
+    let pws = passwords(3, "guardian");
+    init_shards(&key, 2, 3, dir.path(), &pws).expect("init");
+
+    let staged: Vec<_> = (1..=2)
+        .map(|id| {
+            qr::stage_shard_from_qr_png(&dir.path().join(format!("shard-{id}-qr-0.png")))
+                .expect("stage shard qr")
+        })
+        .collect();
+
+    let out = sign_transaction_from_shards(&staged, &pws[..2], params_for(&key)).expect("sign");
+    assert_eq!(out.from, derive_address(&seed_of(&key)));
+    assert!(verify_output(&out));
+
+    for path in staged {
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 #[test]

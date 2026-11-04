@@ -17,6 +17,7 @@ pub mod error;
 pub mod mpc;
 pub mod qr;
 pub mod qr_mpc;
+pub mod risk;
 pub mod shard;
 pub mod sss;
 pub mod tx;
@@ -27,6 +28,7 @@ use crate::shard::{Shard, aad};
 use crate::tx::{SignedTx, TxParams};
 use k256::elliptic_curve::ff::PrimeField;
 use k256::{Scalar, SecretKey};
+use rand::RngCore;
 use std::fs;
 use std::path::{Path, PathBuf};
 use zeroize::{Zeroize, Zeroizing};
@@ -62,6 +64,20 @@ pub fn init_shards(
     out_dir: &Path,
     passwords: &[String],
 ) -> Result<Vec<PathBuf>, Error> {
+    let destinations = vec![out_dir.to_path_buf(); share_count as usize];
+    init_shards_to(key, threshold, share_count, &destinations, passwords)
+}
+
+/// Split a private key into encrypted shard files, writing shard `i` (and its
+/// QR transport) into `destinations[i]`. This lets a guardian distribute one
+/// shard per storage device (e.g. a USB drive) in a single split operation.
+pub fn init_shards_to(
+    key: &SecretKey,
+    threshold: u8,
+    share_count: u8,
+    destinations: &[PathBuf],
+    passwords: &[String],
+) -> Result<Vec<PathBuf>, Error> {
     if threshold == 0 || threshold > share_count {
         return Err(Error::InvalidParams(format!(
             "threshold ({threshold}) must be between 1 and share count ({share_count})"
@@ -73,9 +89,14 @@ pub fn init_shards(
             passwords.len()
         )));
     }
+    if destinations.len() != share_count as usize {
+        return Err(Error::InvalidParams(format!(
+            "expected {share_count} destinations, got {}",
+            destinations.len()
+        )));
+    }
 
     let shares = sss::split(key, threshold as usize, share_count as usize)?;
-    fs::create_dir_all(out_dir)?;
 
     let mut paths = Vec::with_capacity(shares.len());
     for (i, share) in shares.iter().enumerate() {
@@ -92,8 +113,23 @@ pub fn init_shards(
         sealed_arr.copy_from_slice(&sealed);
 
         let shard = Shard::new(threshold, share_count, id, salt, nonce, sealed_arr);
+        let out_dir = &destinations[i];
+        fs::create_dir_all(out_dir)?;
         let path = out_dir.join(format!("shard-{id}.hx"));
         shard.write(&path)?;
+        // Generate a QR containing the exact encrypted shard bytes.
+        let mut session = [0u8; crate::qr::SESSION_LEN];
+        rand::rngs::OsRng.fill_bytes(&mut session);
+
+        crate::qr::write_message_transport(
+            out_dir,
+            &format!("shard-{id}-qr"),
+            crate::qr::Transport::Qr,
+            crate::qr::MessageType::EncryptedShard,
+            session,
+            &shard.to_bytes(),
+        )?;
+
         paths.push(path);
     }
     Ok(paths)
