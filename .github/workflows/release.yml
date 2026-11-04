@@ -31,7 +31,7 @@ jobs:
         run: sha256sum target/release/horcrux > target/release/horcrux.sha256
 
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v3.0.2
+        uses: softprops/action-gh-release@v3.0.3
         with:
           files: |
             target/release/horcrux
