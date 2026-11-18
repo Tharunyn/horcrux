@@ -22,6 +22,11 @@
 
     <p class="rail-tag">Local console · Solana MVP</p>
 
+    <button class="btn btn-outline theme-toggle" id="themeToggle" type="button">
+      <span id="themeToggleIcon">☀️</span>
+      <span id="themeToggleLabel">Light mode</span>
+    </button>
+
     <nav class="rail-nav" id="railNav">
       <button class="rail-item is-active" data-section="log">
         <span class="rail-ic">⏱</span> Access log
@@ -661,5 +666,35 @@
 </div>
 
 <script src="/app.js"></script>
+<script>
+  (() => {
+    const toggle = document.getElementById("themeToggle");
+    const icon = document.getElementById("themeToggleIcon");
+    const label = document.getElementById("themeToggleLabel");
+
+    if (!toggle || !icon || !label) return;
+
+    function applyTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+
+      const isLight = theme === "light";
+      icon.textContent = isLight ? "🌙" : "☀️";
+      label.textContent = isLight ? "Dark mode" : "Light mode";
+    }
+
+    const savedTheme = localStorage.getItem("horcrux-theme") || "dark";
+    applyTheme(savedTheme);
+
+    toggle.addEventListener("click", () => {
+      const currentTheme =
+        document.documentElement.getAttribute("data-theme") || "dark";
+
+      const nextTheme = currentTheme === "dark" ? "light" : "dark";
+
+      applyTheme(nextTheme);
+      localStorage.setItem("horcrux-theme", nextTheme);
+    });
+  })();
+</script>
 </body>
 </html>

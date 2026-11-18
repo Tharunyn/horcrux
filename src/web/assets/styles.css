@@ -22,6 +22,47 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* ===== Light Theme ===== */
+html[data-theme="light"] {
+  --bg: #f3f6fa;
+  --surface: #ffffff;
+  --surface-2: #eaf0f6;
+  --border: rgba(15, 23, 42, 0.10);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --text: #17212f;
+  --text-muted: #526174;
+  --text-faint: #78869a;
+  --accent: #087f70;
+  --accent-2: #6668d9;
+  --accent-soft: rgba(8, 127, 112, 0.10);
+  --warn: #a96508;
+  --warn-soft: rgba(169, 101, 8, 0.10);
+  --danger: #c83243;
+  --danger-soft: rgba(200, 50, 67, 0.10);
+  --ok: #16834a;
+  --ok-soft: rgba(22, 131, 74, 0.10);
+}
+
+html[data-theme="light"] .btn-outline {
+  background: rgba(15, 23, 42, 0.03);
+}
+
+html[data-theme="light"] .rail-item:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .signing-entry,
+html[data-theme="light"] .qr-intro {
+  background: rgba(15, 23, 42, 0.025);
+}
+
+/* Theme toggle */
+.theme-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 18px;
+}
+
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body {
@@ -455,4 +496,15 @@ table.data tr:last-child td { border-bottom: none; }
   .security-dashboard .risk-panel {
     padding: 16px;
   }
+}
+/* Light theme primary buttons */
+html[data-theme="light"] .btn-primary {
+  background: linear-gradient(135deg, #087f70, #5265c9);
+  color: #ffffff;
+  border: 1px solid transparent;
+  box-shadow: 0 2px 6px rgba(8, 127, 112, 0.18);
+}
+
+html[data-theme="light"] .btn-primary:hover {
+  filter: brightness(1.12);
 }
